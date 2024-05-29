@@ -11,10 +11,10 @@ use magic_regexp::{Digit, Times, create_reg_exp, Exactly, Condition, Text};
 use regex::Regex;
 
 const TO_SEARCH: &'static str = "On 2010-03-14, foo happened. On 2014-10-14, bar happened.";
-let input = Times(Digit, 4).and(Exactly(Text("-".to_string()))).and(Times(Digit, 2)).and(Exactly(Text(("-".to_string())))).and(Times(Digit, 2));
+let input = Times(Digit, 4).and(Exactly(Text("-"))).and(Times(Digit, 2)).and(Exactly(Text(("-")))).and(Times(Digit, 2));
 assert_eq!(input.to_string(), r"\d{4}-\d{2}-\d{2}");
 
-let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-".to_string()))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-".to_string())))).and(Times(Digit, 2).grouped_as("day"));
+let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-"))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-")))).and(Times(Digit, 2).grouped_as("day"));
 let re = create_reg_exp(input).unwrap();
 assert!(re.is_match("2014-01-01"));
 assert_eq!(re.find_iter(TO_SEARCH).count(), 2);
@@ -45,9 +45,9 @@ use regex::Regex;
 /// use regex::Regex;
 ///
 /// const TO_SEARCH: &'static str = "On 2010-03-14, foo happened. On 2014-10-14, bar happened.";
-/// let input = Times(Digit, 4).and(Exactly(Text("-".to_string()))).and(Times(Digit, 2)).and(Exactly(Text(("-".to_string())))).and(Times(Digit, 2));
+/// let input = Times(Digit, 4).and(Exactly(Text("-"))).and(Times(Digit, 2)).and(Exactly(Text(("-")))).and(Times(Digit, 2));
 /// assert_eq!(input.to_string(), r"\d{4}-\d{2}-\d{2}");
-/// let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-".to_string()))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-".to_string())))).and(Times(Digit, 2).grouped_as("day"));
+/// let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-"))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-")))).and(Times(Digit, 2).grouped_as("day"));
 /// let re = create_reg_exp(input).unwrap();
 /// assert!(re.is_match("2014-01-01"));
 /// assert_eq!(re.find_iter(TO_SEARCH).count(), 2);

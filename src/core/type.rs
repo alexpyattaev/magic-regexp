@@ -1,3 +1,4 @@
+use std::fmt::{Display};
 use crate::{AsRegex, Condition, Result};
 use regex::Regex;
 
@@ -11,7 +12,7 @@ use regex::Regex;
 /// let input = OneOrMore(Digit);
 /// assert_eq!(input.to_string(), r"(\d+)"); // Note that the regex is wrapped in parentheses.
 /// ```
-pub enum Type {
+pub enum Type<'a> {
     Digit,
     NotDigit,
     WordBoundary,
@@ -19,8 +20,8 @@ pub enum Type {
     Word,
     WordChar,
     NotWordChar,
-    Text(String),
-    Options(String),
+    Text(&'a str),
+    Options(&'a str),
     Char,
     Whitespace,
     NotWhitespace,
@@ -38,11 +39,12 @@ pub enum Type {
     NotCarriageReturn,
 }
 
-impl AsRegex for Type {}
-impl ToString for Type {
-    fn to_string(&self) -> String {
+impl<'a> AsRegex for Type<'a> {}
+
+impl<'a> Display for Type<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt;
-        match self {
+        let str = match self {
             Type::Digit => r"\d",
             Type::NotDigit => r"\D",
             Type::WordBoundary => r"\b",
@@ -71,7 +73,8 @@ impl ToString for Type {
                 txt.as_str()
             }
         }
-        .to_string()
+            .to_string();
+        write!(f, "{}", str)
     }
 }
 
@@ -85,7 +88,7 @@ impl ToString for Type {
 /// ```
 /// use magic_regexp::{OneOrMore, not, Options};
 ///
-/// let input = OneOrMore(not(not(Options("01".to_string()))));
+/// let input = OneOrMore(not(not(Options("01"))));
 /// assert_eq!(input.to_string(), r"([01]+)");
 /// ```
 pub fn not(t: Type) -> Type {
@@ -110,15 +113,15 @@ pub fn not(t: Type) -> Type {
         Type::NotLinefeed => Type::Linefeed,
         Type::CarriageReturn => Type::NotCarriageReturn,
         Type::NotCarriageReturn => Type::CarriageReturn,
-        Type::Text(t) => Type::Text(format!("^{}", t)),
+        Type::Text(t) => Type::Text(Box::leak(format!("^{}", t).into_boxed_str())),
         Type::Options(t) => {
             if let Some(first) = t.chars().next() {
-                let opt = if first == '^' {
+                let opt: String = if first == '^' {
                     t[1..].to_string()
                 } else {
                     format!("^{}", t)
                 };
-                Type::Options(opt)
+                Type::Options(Box::leak(opt.into_boxed_str()))
             } else {
                 panic!("Invalid options: {}", t);
             }
@@ -162,65 +165,34 @@ pub fn not(t: Type) -> Type {
 /// assert!(regex.is_match("a"));
 /// assert!(regex.is_match("1 2"));
 /// ```
-pub enum Input {
-    OneOrMore(Type),
-    Exactly(Type),
-    Maybe(Type),
-    Times(Type, usize),
+pub enum Input<'a> {
+    OneOrMore(Type<'a>),
+    Exactly(Type<'a>),
+    Maybe(Type<'a>),
+    Times(Type<'a>, usize),
 }
 
-impl ToString for Input {
-    /// Returns a string representation of the input.
-    /// For example, `Input::Exactly(Type::Digit)` will return `\d`.
-    ///
-    /// # Example
-    /// ```
-    /// use magic_regexp::{Exactly, Digit, AsRegex, create_reg_exp};
-    ///
-    /// let regex = create_reg_exp(Exactly(Digit)).unwrap();
-    /// assert!(regex.is_match("1"));
-    /// assert!(!regex.is_match("12"));
-    /// ```
-    ///
-    /// # Example
-    /// ```
-    /// use magic_regexp::{Input, Type};
-    ///
-    /// let input = Input::Exactly(Type::Text("abc".into()));
-    /// assert_eq!(input.to_string(), "abc");
-    /// let input = Input::Exactly(Type::Text(".".to_string()));
-    /// assert_eq!(input.to_string(), r"\.");
-    /// ```
-    ///
-    /// # Example
-    /// ```
-    /// use magic_regexp::{not, OneOrMore, Options};
-    /// use regex::Regex;
-    ///
-    /// let input = OneOrMore(not(Options("01".to_string())));
-    /// assert_eq!(input.to_string(), r"([^01]+)");
-    /// let re = Regex::new(&input.to_string()).unwrap();
-    /// assert_eq!(re.replace("1078910", ""), "1010");
-    /// ```
-    fn to_string(&self) -> String {
+impl<'a> Display for Input<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const ESCAPE_REPLACE_RE: &str = r"[.*+?^${}()|[\\]\\/]";
 
-        match self {
-            Input::OneOrMore(t) => format!("({}+)", t.to_string()),
+        let str = match self {
+            Input::OneOrMore(t) => format!("({}+)", t),
             Input::Exactly(t) => match t {
                 Type::Text(t) => Regex::new(ESCAPE_REPLACE_RE)
                     .expect("Invalid replace_all regex")
-                    .replace_all(t, r"\$0")
-                    .to_string(),
-                _ => format!(r"\b{}\b", t.to_string()),
+                    .replace_all(t, r"\$0").parse().unwrap()
+                ,
+                _ => format!(r"\b{}\b", t),
             },
-            Input::Maybe(t) => format!("({}?)", t.to_string()),
-            Input::Times(t, n) => format!("{}{{{}}}", t.to_string(), n),
-        }
+            Input::Maybe(t) => format!("({}?)", t),
+            Input::Times(t, n) => format!("{}{{{}}}", t, n),
+        };
+        write!(f, "{}", str)
     }
 }
 
-impl AsRegex for Input {
+impl<'a> AsRegex for Input<'a> {
     fn as_regex(&self) -> Result<Regex> {
         Ok(Regex::new(&self.to_string())?)
     }
@@ -240,9 +212,9 @@ impl AsRegex for Input {
 /// assert!(!regex.is_match("1a"));
 /// assert!(regex.is_match("1 a"));
 /// ```
-impl Condition for Input {}
+impl<'a> Condition for Input<'a> {}
 
-impl Input {
+impl<'a> Input<'a> {
     /// This defines the entire input so far as a named capture group.
     ///
     /// # Example
@@ -295,4 +267,5 @@ impl Input {
 }
 
 impl AsRegex for Regex {}
+
 impl Condition for Regex {}

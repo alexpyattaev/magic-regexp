@@ -18,18 +18,18 @@ use regex::Regex;
 
 fn main() {
     let input = Times(Digit, 4)
-        .and(Exactly(Text("-".to_string())))
+        .and(Exactly(Text("-")))
         .and(Times(Digit, 2))
-        .and(Exactly(Text(("-".to_string()))))
+        .and(Exactly(Text(("-"))))
         .and(Times(Digit, 2));
     assert_eq!(input.to_string(), r"\d{4}-\d{2}-\d{2}");
 
     let input = Times(Digit, 4)
         .grouped_as("year")
-        .and(Exactly(Text("-".to_string())))
+        .and(Exactly(Text("-")))
         .and(Times(Digit, 2)
             .grouped_as("month"))
-        .and(Exactly(Text(("-".to_string()))))
+        .and(Exactly(Text(("-"))))
         .and(Times(Digit, 2)
             .grouped_as("day"));
     let re = create_reg_exp(input).unwrap();
