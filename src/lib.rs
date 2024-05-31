@@ -7,14 +7,14 @@ For more specific details on the API for regular expressions, please see around 
 # Example: Find a date
 
 ```rust
-use magic_regexp::{Digit, Times, create_reg_exp, Exactly, Condition, Text};
+use magic_regexp::{Digit, Times, create_reg_exp, Grouping, Condition, Text};
 use regex::Regex;
 
 const TO_SEARCH: &'static str = "On 2010-03-14, foo happened. On 2014-10-14, bar happened.";
-let input = Times(Digit, 4).and(Exactly(Text("-"))).and(Times(Digit, 2)).and(Exactly(Text(("-")))).and(Times(Digit, 2));
+let input = Times(Digit, 4).and(Text("-")).and(Times(Digit, 2)).and(Text(("-"))).and(Times(Digit, 2));
 assert_eq!(input.to_string(), r"\d{4}-\d{2}-\d{2}");
 
-let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-"))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-")))).and(Times(Digit, 2).grouped_as("day"));
+let input = Times(Digit, 4).grouped_as("year").and(Text("-")).and(Times(Digit, 2).grouped_as("month")).and(Text(("-"))).and(Times(Digit, 2).grouped_as("day"));
 let re = create_reg_exp(input).unwrap();
 assert!(re.is_match("2014-01-01"));
 assert_eq!(re.find_iter(TO_SEARCH).count(), 2);
@@ -41,13 +41,13 @@ use regex::Regex;
 ///
 /// # Example
 /// ```
-/// use magic_regexp::{Digit, Times, create_reg_exp, Exactly, Condition, Text};
+/// use magic_regexp::{Digit, Times, create_reg_exp, Condition, Grouping, Text};
 /// use regex::Regex;
 ///
 /// const TO_SEARCH: &'static str = "On 2010-03-14, foo happened. On 2014-10-14, bar happened.";
-/// let input = Times(Digit, 4).and(Exactly(Text("-"))).and(Times(Digit, 2)).and(Exactly(Text(("-")))).and(Times(Digit, 2));
+/// let input = Times(Digit, 4).and(Text("-")).and(Times(Digit, 2)).and(Text(("-"))).and(Times(Digit, 2));
 /// assert_eq!(input.to_string(), r"\d{4}-\d{2}-\d{2}");
-/// let input = Times(Digit, 4).grouped_as("year").and(Exactly(Text("-"))).and(Times(Digit, 2).grouped_as("month")).and(Exactly(Text(("-")))).and(Times(Digit, 2).grouped_as("day"));
+/// let input = Times(Digit, 4).grouped_as("year").and(Text("-")).and(Times(Digit, 2).grouped_as("month")).and(Text(("-"))).and(Times(Digit, 2).grouped_as("day"));
 /// let re = create_reg_exp(input).unwrap();
 /// assert!(re.is_match("2014-01-01"));
 /// assert_eq!(re.find_iter(TO_SEARCH).count(), 2);
@@ -67,9 +67,9 @@ pub fn create_reg_exp(input: impl AsRegex) -> Result<Regex> {
 
 #[cfg(test)]
 mod tests {
-    use super::{create_reg_exp, not, Exactly, OneOrMore, Type::Digit};
-    use crate::Input::Maybe;
-    use crate::Type::Text;
+    use super::Input::Maybe;
+    use super::Type::{Digit, Text, Whitespace, Word};
+    use super::{create_reg_exp, not, Condition, Exactly, OneOrMore};
 
     #[test]
     fn test_single_digit() {
@@ -77,7 +77,7 @@ mod tests {
         let regex = create_reg_exp(input).unwrap();
         assert!(regex.is_match("1"));
         assert!(!regex.is_match("12"));
-        assert!(regex.is_match("1 2"));
+        assert!(!regex.is_match("1 2"));
     }
 
     #[test]
@@ -86,7 +86,7 @@ mod tests {
         let regex = create_reg_exp(input).unwrap();
         assert!(regex.is_match("1"));
         assert!(regex.is_match(""));
-        assert!(regex.is_match("12"));
+        assert!(regex.is_match("a12"));
         assert!(regex.is_match("1 2"));
     }
     #[test]
@@ -105,6 +105,7 @@ mod tests {
         let input = Exactly(not(Digit));
         let regex = create_reg_exp(input).unwrap();
         assert!(!regex.is_match("1"));
+        assert!(!regex.is_match("ab"));
         assert!(regex.is_match("a"));
     }
 
@@ -118,9 +119,35 @@ mod tests {
 
     #[test]
     fn test_exactly_text() {
-        let input = Exactly(Text("welt".into()));
+        let input = Text("welt");
         let regex = create_reg_exp(input).unwrap();
         assert!(regex.is_match("Hallo welt"));
         assert!(!regex.is_match("Hallo Welt"));
+
+        let input = Exactly(Text("Hallo welt"));
+        let regex = create_reg_exp(input).unwrap();
+        assert!(regex.is_match("Hallo welt"));
+        assert!(!regex.is_match("Hallo Welt"));
+    }
+
+    #[test]
+    fn test_non_ascii() {
+        let input = Exactly(Text("Привет мир"));
+        let regex = create_reg_exp(input).unwrap();
+        assert!(!regex.is_match("Hello world"));
+        assert!(regex.is_match("Привет мир"));
+
+        let input = Word.and(Whitespace).and(Word);
+        let regex = create_reg_exp(input).unwrap();
+        assert!(regex.is_match("Привет мир"));
+    }
+
+    #[test]
+    fn one_or_more() {
+        use super::{not, AnyOf, OneOrMore};
+
+        let input = OneOrMore(not(not(AnyOf("01"))));
+
+        assert_eq!(input.to_string(), r"[01]+");
     }
 }
